@@ -87,9 +87,10 @@ function isDDLQuery(query: string): { isDDL: boolean; statement: string | null }
 
 /**
  * Strips leading whitespace and comments (--, # and block comments) so the statement keyword comes first.
+ * Block comments that nest or start with /*! are left in place.
  */
 function stripLeadingComments(query: string): string {
-  return query.replace(/^(?:\s+|--[^\n]*|#[^\n]*|\/\*[\s\S]*?\*\/)*/, "");
+  return query.replace(/^(?:\s+|--[^\n]*|#[^\n]*|\/\*(?!!)(?:(?!\/\*)[\s\S])*?\*\/)*/, "");
 }
 
 /**
@@ -106,6 +107,15 @@ export function validateWriteQuery(
 ): ValidationResult {
   const statement = stripLeadingComments(query);
   const normalized = statement.toUpperCase();
+
+  // Postgres nests block comments and MySQL runs /*! ones, so where they end depends on the engine
+  if (statement.startsWith("/*")) {
+    return {
+      allowed: false,
+      requiresConfirmation: false,
+      reason: "A query cannot start with a nested block comment or a /*! comment.",
+    };
+  }
 
   // Check for DDL statements
   const ddlCheck = isDDLQuery(statement);

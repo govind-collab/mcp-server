@@ -19,6 +19,17 @@ test("a leading comment does not let TRUNCATE through", () => {
   assert.equal(result.allowed, false);
 });
 
+test("a nested or /*! block comment at the start is rejected", () => {
+  for (const query of [
+    "/* a /* b */ c */ DELETE FROM sessions",
+    "/*!DELETE FROM sessions*/",
+  ]) {
+    const result = validateWriteQuery(query, true);
+    assert.equal(result.allowed, false, query);
+    assert.equal(result.requiresConfirmation, false, query);
+  }
+});
+
 test("DDL behind a leading comment still needs confirmation", () => {
   const result = validateWriteQuery("# old table\n-- not used since v2\nDROP TABLE users", false);
   assert.equal(result.allowed, false);
